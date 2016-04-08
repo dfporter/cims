@@ -1,10 +1,12 @@
-
+"""FASTQ > CIMS tables output and fasta.
+"""
 import glob
 import sys
 import os
 import re
 from fastqs import *
 import argparse
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser("FASTQ > CIMS tables/fasta")
@@ -34,16 +36,16 @@ Experiment class 2 files: control_TTGT, control_CCGG, control_TTAA, control_AATA
         fqs.combine_replicates()
         fqs.collapse_duplicate_tags_for_cims(just_print=True)
     if args.cims:
-    #    fqs.combine_replicates(top_dir='novo_tags_collapse/')
-        #fqs.reformat_collapsed_tags(
-        #    input_dir='bed_collapsed/no_rrna',
-            #input_dir='novo_tags_collapse',
-        #    output_dir='collapsed_reformated')
-        #fqs.split_types(in_dir='mismatch_tags/')
-        #fqs.combine_replicates_mismatches(top_dir='mismatches_by_type')
-        #fqs.call_cims(in_dir='collapsed_reformated/',
-        #              mismatches_dir='mismatches_by_type/',
-        #              output_dir='cims_out/')
-        #fqs.create_tables(cims=True)
-    fqs.get_reproducible_peaks(in_dir='cims_tables/', min_reps=2)
+        fqs.combine_replicates(top_dir='novo_tags_collapse/')
+        fqs.reformat_collapsed_tags(
+            input_dir='bed_collapsed/no_rrna',
+            input_dir='novo_tags_collapse',
+            output_dir='collapsed_reformated')
+        fqs.split_types(in_dir='mismatch_tags/')
+        fqs.combine_replicates_mismatches(top_dir='mismatches_by_type')
+        fqs.call_cims(in_dir='collapsed_reformated/',
+                      mismatches_dir='mismatches_by_type/',
+                      output_dir='cims_out/')
+        fqs.create_tables(cims=True)
+        fqs.get_reproducible_peaks(in_dir='cims_tables/', min_reps=2)
 

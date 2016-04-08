@@ -14,13 +14,13 @@ def _mk(d):
 
 class fastqs(object):
 
-    def __init__(self, path='fastqs/', name='Unnamed', lib=None):
+    def __init__(self, path='fastqs/', name='Unnamed', lib='none'):
         self.path = path
         self.name = name
         self.files = glob.glob(path + '/*.fastq')
         #self.cims_path = '/groups/Kimble/Aman\ Prasad/clip/CIMS/'
         self.cims_path = '/groups/Kimble/Common/fog_iCLIP/cims/CIMS/'
-        if lib is None:
+        if lib == 'none':
             self.lib = """
 Experiment class 1 name: FOG-3
 Experiment class 1 files: fog_GGCA, fog_CGGA, fog_GGTT, fog_TGGC

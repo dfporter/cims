@@ -23,5 +23,12 @@ python cims_master.py -i FOLDER_OF_FASTQ_FILES --lib fog_cims.ini --map
 # Then do the cims analysis.
 python cims_master.py -i FOLDER_OF_FASTQ_FILES --lib fog_cims.ini --cims
 # Output is in cims_tables/
+
+# To get dinucleotide frequencies in a fasta.
+python dimers.py FASTA_FILE
+# Outputs a heatmap.
+
+# To get frequncy near a morif of interest:
+pyhton pos_vs_motif.py -i cims_tables/ -m A_MOTIF
 ```
 

@@ -111,6 +111,9 @@ def score_dist_to_motif(filename, sequences, motif='TGT\w\w\wAT'):
     #print_seqlogo_format(nt_count, out_filename=meme_filename)
     print_meme_format(nt_count, out_filename=meme_filename)
     if verbose: print hist
+    if len(hist.keys()) == 0: return hist
+    for pos in range(min(hist.keys()), max(hist.keys())):
+        if pos not in hist: hist[pos] = 0
     return hist
                                   
 def _mk(d):
@@ -199,11 +202,12 @@ def plot_freq(freq, output_filename, motif='UGUNNNAU'):
     plt.clf()
     print freq
     total_y = sum([t[1] for t in freq])
+    x = [t[0] for t in freq]
     if total_y != 1:
         y = [100 * float(t[1])/float(total_y) for t in freq]
     else:
         y = [t[1] for t in freq]
-    x = [t[0] for t in freq]
+    
     plt.xlabel('Position relative to motif (nt)')#, labelpad=20)
     plt.ylabel('Frequency (%)')
     plt.plot(x, y, 'k')
@@ -246,6 +250,7 @@ def plot_two_freq(freq1, freq2, output_filename, motif='UGUNNNAU'):
     plt.savefig(output_filename, format='pdf')
     plt.clf()
 
+
 def cim_vs_site_in_dir(in_dir, fasta_filename='/scratch/indexes/WS235.fa',
                        motif='ctca'):
     sequences = dict(
@@ -268,4 +273,10 @@ def cim_vs_site_in_dir(in_dir, fasta_filename='/scratch/indexes/WS235.fa',
 
 
 if __name__ == '__main__':
-    cim_vs_site_in_dir(sys.argv[1])
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', '--input_dir', default='cims_tables/',
+      help='Folder of cims tables with seq columns.')
+    parser.add_argument('-m', '--motif', default='ctca')    
+    args = parser.parse_args()
+    cim_vs_site_in_dir(args.input_dir, motif=args.motif)

@@ -61,4 +61,5 @@ ax.set_xticklabels(bases)
 ax.set_yticks(range(0,4))
 ax.set_yticklabels(bases)
 #ax.grid()
-plt.savefig('%s.pdf' % os.path.basename(fname), format='pdf')
+plt.savefig('%s_dinucleotide_frequencies.pdf' % os.path.basename(fname),
+            format='pdf')
