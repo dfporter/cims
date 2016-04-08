@@ -14,27 +14,37 @@ def _mk(d):
 
 class fastqs(object):
 
-    def __init__(self, path='fastqs/', name='Unnamed'):
+    def __init__(self, path='fastqs/', name='Unnamed', lib=None):
         self.path = path
         self.name = name
         self.files = glob.glob(path + '/*.fastq')
         #self.cims_path = '/groups/Kimble/Aman\ Prasad/clip/CIMS/'
-        self.cims_path = './CIMS/'
-        self.lib = """
+        self.cims_path = '/groups/Kimble/Common/fog_iCLIP/cims/CIMS/'
+        if lib is None:
+            self.lib = """
 Experiment class 1 name: FOG-3
 Experiment class 1 files: fog_GGCA, fog_CGGA, fog_GGTT, fog_TGGC
 Experiment class 2 name: Control
 Experiment class 2 files: control_TTGT, control_CCGG, control_TTAA, control_AATA
 """
+        else:
+            self.lib = "\n".join(open(lib).readlines())
         self.parse_lib(self.lib)
         self.gtf_raw = '/groups/Kimble/Common/fog_iCLIP/lib/Caenorhabditis_elegans.WBcel235.78.noheader.gtf'
         self.gtf = '/groups/Kimble/Common/fog_iCLIP/lib/gtf_with_names_column.txt'
-
+        for path in [
+            self.cims_path, self.gtf_raw, self.gtf,
+            '/opt/novocraft/novoalign', '/scratch/indexes/ws235.novo',
+            '/scratch/indexes/WS235.fa']:
+            if not os.path.exists(path):
+                if raw_input(
+                    """{a} could not be found. Run anyway?
+""".format(a=path)).upper() != 'Y': sys.exit()
 
     def parse_lib(self, astr):
         self.experiments = collections.defaultdict(dict)
         for li in astr.split('\n'):
-            print li
+            print li,
             s = li.rstrip('\n').split(':')
             mname = re.search('Experiment class (\d+) name', s[0])
             mfiles = re.search('Experiment class (\d+) files', s[0])
@@ -43,7 +53,7 @@ Experiment class 2 files: control_TTGT, control_CCGG, control_TTAA, control_AATA
                     re.sub('\s', '', s[1])
             if mfiles:
                 self.experiments[mfiles.group(1)]['Files'] = \
-                    [re.sub('\s', '', x) for x in s[1].split(', ')]
+                    [re.sub('\s', '', x) for x in s[1].split(',')]
         self.exp = {}
         for exp in self.experiments.values():
             self.exp[exp['Name']] = set(exp['Files'])
@@ -93,13 +103,14 @@ Input fastq files: {c}
             os.system(cmd)
 
     def combine_replicates_mismatches(self, top_dir='mismatches_by_type/'):
+        _mk('mismatches_by_type/')
         by_type = collections.defaultdict(dict)
         for filename in glob.glob(top_dir + '/*'):
             bname = os.path.basename(filename).partition('.bed')[0]
             for x in ['_ins', '_del', '_sub']:
-                exp = bname.partition('_')[0]
-                by_type[x].setdefault(exp, [])
                 if re.search(x, bname):
+                    exp = self.file_to_experiment[bname.partition(x)[0]]
+                    by_type[x].setdefault(exp, [])
                     by_type[x][exp].append(bname.partition(x)[0])
         for _type in by_type:
             for exp in by_type[_type]:
@@ -134,6 +145,7 @@ Input fastq files: {c}
             os.system(cmd)
 
     def collapse_duplicate_tags_for_cims(self, just_print=True):
+        print "export PERL5LIB=/groups/Kimble/Aman\ Prasad/clip/plib/"
         os.system('mkdir novo_tags_collapse')
         #for input_filename in glob.glob('novo_tags/*'):
         for input_filename in glob.glob('novo_tags/*'):
@@ -172,9 +184,9 @@ The n=\d number appears to be the number of duplicates collapsed.
                     out_f.write("\t".join([
                         s[0], s[1], s[2], name, m.group(1), s[5]]) + '\n')
 
-    def split_types(self):
-        _mk('mkdir mismatches_by_type')
-        for filename in glob.glob('mismatch_tags/*'):
+    def split_types(self, in_dir='mismatch_tags/'):
+        _mk('mismatches_by_type')
+        for filename in glob.glob(in_dir + '/*'):
             for this_mut in ['ins', 'del', 'sub']:
                 cmd = 'python {a}/select_mutation_dfporter.py '.format(
                     a=self.cims_path)
@@ -188,12 +200,14 @@ The n=\d number appears to be the number of duplicates collapsed.
                 print cmd
                 os.system(cmd)
 
-    def call_cims(self):
-        _mk('mkdir cims_out')
-        for tag_filename in glob.glob('collapsed_reformated/all*'):
-            mut_filename = 'mismatches_by_type/'
+    def call_cims(self, in_dir='collapsed_reformated/',
+                  mismatches_dir='mismatches_by_type/',
+                  output_dir='cims_out/'):
+        _mk('cims_out')
+        for tag_filename in glob.glob(in_dir + '/*'):
+            mut_filename = mismatches_dir.rstrip('/') + '/'
             mut_filename += os.path.basename(tag_filename).partition('.bed')[0] + '_del.bed'
-            out_filename = 'cims_out/' + os.path.basename(mut_filename)
+            out_filename = output_dir + '/' + os.path.basename(mut_filename)
             cmd = 'perl '
             cmd += '{a}/CIMS.pl --keep-cache -v {tags} {muts} {out}'.format(
                 a=self.cims_path, tags=tag_filename, muts=mut_filename,
@@ -239,6 +253,55 @@ The n=\d number appears to be the number of duplicates collapsed.
             peaks.to_csv(table_dir + '/' + bname, sep='\t', index=False)
             print "Finished processing..."
 
+    def get_reproducible_peaks(self, in_dir='cims_tables/', min_reps=2):
+        by_rep = {}
+        df = {}
+        self.min_reps = min_reps
+        for x in glob.glob(in_dir + '/*'):
+            bname = os.path.basename(x)
+            exp = None
+            for _file in self.file_to_experiment:
+                if re.search(_file, bname):
+                    exp = self.file_to_experiment[_file]
+            if exp is None: continue
+            by_rep.setdefault(exp, {})
+            df.setdefault(exp, {})
+            df[exp][x] = pandas.read_csv(x, sep='\t')
+            by_rep[exp][x] = zip(
+                df[exp][x].chrm, df[exp][x].left, df[exp][x].strand)
+        _mk('reproducible/')
+        for exp in df:
+            repro_df = self.get_reproducible_peaks_this_exp(
+                df[exp], by_rep[exp])
+            repro_df.to_csv('reproducible/' + exp, sep='\t', index=False)
+            write_fasta(repro_df, 'fasta/' + os.path.basename(exp))
+
+    def get_reproducible_peaks_this_exp(self, df, loci_by_rep):
+        rep_counts = collections.defaultdict(int)
+        for _file in loci_by_rep:
+            for loci in set(loci_by_rep[_file]):
+                rep_counts[loci] += 1
+        for _file in df:
+            df[_file]['n_reps'] = [
+                rep_counts[x] for x in loci_by_rep[_file]]
+            df[_file] = df[_file][df[_file]['n_reps']>=self.min_reps]
+        df_exp = self.take_highest(df)
+        return df_exp
+
+    def take_highest(self, df):
+        alist = []
+        for _file in df:
+            alist.extend(df[_file].to_dict('records'))
+        highest_at_loci = {}
+        for row in alist:
+            loci = (row['chrm'], row['left'], row['strand'])
+            if loci in highest_at_loci:
+                if row['height'] > highest_at_loci[loci]['height']:
+                    highest_at_loci[loci] = row
+            else:
+                highest_at_loci[loci] = row
+        df['combined'] = pandas.DataFrame(highest_at_loci.values())
+        return df['combined']
 
 def assign_biotype(peaks, gtf_df):
     to_biotype = collections.defaultdict(str)
