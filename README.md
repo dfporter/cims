@@ -30,5 +30,6 @@ python dimers.py FASTA_FILE
 
 # To get frequncy near a morif of interest:
 pyhton pos_vs_motif.py -i cims_tables/ -m A_MOTIF
+# Outputs a line plot and some seqlogos.
 ```
 
